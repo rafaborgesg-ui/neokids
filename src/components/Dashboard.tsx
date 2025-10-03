@@ -136,8 +136,11 @@ export default function Dashboard({ accessToken }: DashboardProps) {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+      </div>
+
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* KPI Cards */}
         {statCards.map((card, index) => {
           const Icon = card.icon;
@@ -160,7 +163,7 @@ export default function Dashboard({ accessToken }: DashboardProps) {
           );
         })}
       </div>
-      <div className="grid gap-4 mt-4 md:grid-cols-2">
+      <div className="grid gap-4 mt-4 grid-cols-1 lg:grid-cols-2">
         <Card className="border border-gray-200 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">

@@ -562,6 +562,39 @@ export default function PatientManagement() {
         </DialogContent>
       </Dialog>
     )}
+    <div className="container mx-auto p-4">
+      <Card>
+        <CardHeader><CardTitle>Lista de Pacientes</CardTitle></CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead className="hidden sm:table-cell">CPF</TableHead>
+                  <TableHead className="hidden md:table-cell">Telefone</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {patients.map(patient => (
+                  <TableRow key={patient.id}>
+                    <TableCell>{patient.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{patient.cpf}</TableCell>
+                    <TableCell className="hidden md:table-cell">{patient.phone}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => startEditPatient(patient)}>Editar</Button>
+                        <Button variant="destructive" size="sm" onClick={() => deletePatient(patient.id)}>Excluir</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
