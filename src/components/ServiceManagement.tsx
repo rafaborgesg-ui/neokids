@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -17,39 +16,33 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
-import { projectId, publicAnonKey } from '../utils/supabase/info'
-
-interface Service {
-  id: string
-  name: string
-  category: string
-  code: string
-  basePrice: number
-  operationalCost: number
-  estimatedTime: string
-  instructions: string
-  createdAt: string
-}
+import { useServices } from '@/hooks/useServices'
+import { Service } from '@/types'
+import { projectId } from '@/utils/supabase/info'
+import { toast } from 'sonner'
+import { Card, CardContent } from './ui/card'
 
 interface ServiceManagementProps {
   accessToken: string
-  userRole: string
 }
 
-const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) => {
-  const [services, setServices] = useState<Service[]>([])
-  const [editServiceId, setEditServiceId] = useState<string | null>(null)
-  const [editService, setEditService] = useState<any>(null)
+function calculateMargin(basePrice: number, operationalCost: number): string {
+  if (!basePrice || !operationalCost) return "0";
+  const margin = ((basePrice - operationalCost) / basePrice) * 100;
+  return margin.toFixed(2);
+}
+
+export default function ServiceManagement({ accessToken }: ServiceManagementProps) {
+  const { services, loading, fetchServices, setServices } = useServices(accessToken)
   const [isNewServiceOpen, setIsNewServiceOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const [newService, setNewService] = useState({
+  const [newService, setNewService] = useState<Omit<Service, "id" | "createdAt">>({
     name: '',
-    category: '',
+    category: 'Análises Clínicas',
     code: '',
-    basePrice: '',
-    operationalCost: '',
+    basePrice: 0, // Iniciar como número
+    operationalCost: 0, // Iniciar como número
     estimatedTime: '',
     instructions: ''
   })
@@ -62,88 +55,55 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
     'Procedimentos'
   ]
 
-  // Persistência localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("services");
-    if (stored) setServices(JSON.parse(stored));
-  }, []);
+    fetchServices()
+  }, [fetchServices])
 
-  useEffect(() => {
-    localStorage.setItem("services", JSON.stringify(services));
-  }, [services]);
-
-  const fetchServices = async () => {
-    setLoading(true)
+  const createService = async () => {
+    setError('')
+    
     try {
+      const serviceData = {
+        ...newService,
+        basePrice: parseFloat(newService.basePrice),
+        operationalCost: parseFloat(newService.operationalCost)
+      }
+
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-f78aeac5/services`,
         {
+          method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`
-          }
+          },
+          body: JSON.stringify(serviceData)
         }
       )
 
       if (response.ok) {
         const data = await response.json()
-        setServices(data.services || [])
+        setServices(prev => [data.service, ...prev])
+        setIsNewServiceOpen(false)
+        resetNewService()
+        toast.success('Serviço criado com sucesso!')
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Erro ao criar serviço')
       }
     } catch (error) {
-      console.error('Erro ao carregar serviços:', error)
-      setError('Erro ao carregar serviços')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createService = () => {
-    setLoading(true);
-    setTimeout(() => {
-      const serviceData = {
-        ...newService,
-        id: Math.random().toString(36).substr(2, 9),
-        basePrice: parseFloat(newService.basePrice),
-        operationalCost: parseFloat(newService.operationalCost),
-        createdAt: new Date().toISOString(),
-      };
-      setServices(prev => [serviceData, ...prev]);
-      setIsNewServiceOpen(false);
-      resetNewService();
-      setLoading(false);
-      setError("");
-    }, 800);
-  };
-
-  function startEditService(service: Service) {
-    setEditServiceId(service.id);
-    setEditService({ ...service });
-  }
-
-  function saveEditService() {
-    if (!editService) return;
-    setServices(prev => prev.map(s => s.id === editService.id ? editService : s));
-    setEditServiceId(null);
-    setEditService(null);
-  }
-
-  function cancelEditService() {
-    setEditServiceId(null);
-    setEditService(null);
-  }
-
-  function deleteService(id: string) {
-    if (window.confirm("Deseja realmente excluir este serviço?")) {
-      setServices(prev => prev.filter(s => s.id !== id));
+      console.error('Erro ao criar serviço:', error)
+      setError('Erro ao criar serviço')
     }
   }
 
   const resetNewService = () => {
     setNewService({
       name: '',
-      category: '',
+      category: 'Análises Clínicas',
       code: '',
-      basePrice: '',
-      operationalCost: '',
+      basePrice: 0,
+      operationalCost: 0,
       estimatedTime: '',
       instructions: ''
     })
@@ -154,11 +114,6 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
       style: 'currency',
       currency: 'BRL'
     }).format(value)
-  }
-
-  const calculateMargin = (basePrice: number, operationalCost: number) => {
-    if (basePrice === 0) return 0
-    return ((basePrice - operationalCost) / basePrice * 100).toFixed(1)
   }
 
   const getCategoryColor = (category: string) => {
@@ -173,9 +128,7 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Gerenciamento de Serviços</h1>
-
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Catálogo de Serviços</h2>
         
@@ -186,7 +139,7 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
               <span>Novo Serviço</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Cadastrar Novo Serviço</DialogTitle>
             </DialogHeader>
@@ -245,9 +198,8 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
                   <Input
                     id="basePrice"
                     type="number"
-                    step="0.01"
                     value={newService.basePrice}
-                    onChange={(e) => setNewService(prev => ({ ...prev, basePrice: e.target.value }))}
+                    onChange={(e) => setNewService(prev => ({ ...prev, basePrice: parseFloat(e.target.value) || 0 }))}
                     placeholder="0,00"
                     required
                   />
@@ -258,9 +210,8 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
                   <Input
                     id="operationalCost"
                     type="number"
-                    step="0.01"
                     value={newService.operationalCost}
-                    onChange={(e) => setNewService(prev => ({ ...prev, operationalCost: e.target.value }))}
+                    onChange={(e) => setNewService(prev => ({ ...prev, operationalCost: parseFloat(e.target.value) || 0 }))}
                     placeholder="0,00"
                   />
                 </div>
@@ -287,21 +238,21 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
                 />
               </div>
               
-              {newService.basePrice && newService.operationalCost && (
-                <Card className="bg-blue-50 border border-gray-200">
-                  <CardContent className="p-4">
+              {newService.basePrice > 0 && newService.operationalCost > 0 && (
+                <Card>
+                  <CardContent>
                     <h4 className="font-medium text-blue-900 mb-2">Análise Financeira</h4>
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-blue-700">Margem de Contribuição</p>
                         <p className="font-semibold text-blue-900">
-                          {calculateMargin(parseFloat(newService.basePrice), parseFloat(newService.operationalCost))}%
+                          {calculateMargin(newService.basePrice, newService.operationalCost)}%
                         </p>
                       </div>
                       <div>
                         <p className="text-blue-700">Lucro por Serviço</p>
                         <p className="font-semibold text-blue-900">
-                          {formatCurrency(parseFloat(newService.basePrice) - parseFloat(newService.operationalCost))}
+                          {formatCurrency(newService.basePrice - newService.operationalCost)}
                         </p>
                       </div>
                       <div>
@@ -344,7 +295,7 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {services.map((service) => (
-            <Card key={service.id} className="border border-gray-200 hover:shadow-lg transition-shadow">
+            <Card key={service.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
@@ -360,10 +311,10 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
                   </div>
                   
                   <div className="flex space-x-1">
-                    <Button variant="ghost" size="sm" onClick={() => startEditService(service)}>
+                    <Button variant="ghost" size="sm">
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => deleteService(service.id)}>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -417,7 +368,7 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
 
                 <div className="mt-4 pt-4 border-t">
                   <p className="text-xs text-gray-500">
-                    Criado em {new Date(service.createdAt).toLocaleDateString('pt-BR')}
+                    {service.createdAt && `Criado em ${new Date(service.createdAt).toLocaleDateString('pt-BR')}`}
                   </p>
                 </div>
               </CardContent>
@@ -427,7 +378,7 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
       )}
 
       {services.length === 0 && !loading && (
-  <Card className="border border-gray-200 shadow-sm">
+        <Card>
           <CardContent className="p-6 text-center">
             <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">Nenhum serviço cadastrado</p>
@@ -437,104 +388,6 @@ const ServiceManagement = ({ accessToken, userRole }: ServiceManagementProps) =>
           </CardContent>
         </Card>
       )}
-    {/* Modal de edição de serviço */}
-    {editServiceId && editService && (
-      <Dialog open={true} onOpenChange={cancelEditService}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar Serviço</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Nome do Serviço *</Label>
-                <Input
-                  id="edit-name"
-                  value={editService.name}
-                  onChange={e => setEditService((prev: any) => prev ? { ...prev, name: e.target.value } : prev)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-code">Código *</Label>
-                <Input
-                  id="edit-code"
-                  value={editService.code}
-                  onChange={e => setEditService((prev: any) => prev ? { ...prev, code: e.target.value } : prev)}
-                  required
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="edit-category">Categoria *</Label>
-                <Select
-                  value={editService.category}
-                  onValueChange={(value: string) => setEditService((prev: any) => prev ? { ...prev, category: value } : prev)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-basePrice">Preço Base (R$) *</Label>
-                <Input
-                  id="edit-basePrice"
-                  type="number"
-                  step="0.01"
-                  value={editService.basePrice}
-                  onChange={e => setEditService((prev: any) => prev ? { ...prev, basePrice: e.target.value } : prev)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-operationalCost">Custo Operacional (R$)</Label>
-                <Input
-                  id="edit-operationalCost"
-                  type="number"
-                  step="0.01"
-                  value={editService.operationalCost}
-                  onChange={e => setEditService((prev: any) => prev ? { ...prev, operationalCost: e.target.value } : prev)}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="edit-estimatedTime">Tempo Estimado para Resultado</Label>
-                <Input
-                  id="edit-estimatedTime"
-                  value={editService.estimatedTime}
-                  onChange={e => setEditService((prev: any) => prev ? { ...prev, estimatedTime: e.target.value } : prev)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-instructions">Instruções de Preparo</Label>
-              <Textarea
-                id="edit-instructions"
-                value={editService.instructions}
-                onChange={e => setEditService((prev: any) => prev ? { ...prev, instructions: e.target.value } : prev)}
-                rows={4}
-              />
-            </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={cancelEditService}>
-                Cancelar
-              </Button>
-              <Button onClick={saveEditService}>
-                Salvar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )}
     </div>
   )
 }
-
-export default ServiceManagement;

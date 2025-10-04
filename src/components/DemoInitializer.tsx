@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Alert, AlertDescription } from './ui/alert'
 import { CheckCircle, Loader2, Database } from 'lucide-react'
 import { projectId, publicAnonKey } from '../utils/supabase/info'
 
-const DemoInitializer = () => {
+export const DemoInitializer = () => {
   const [isInitialized, setIsInitialized] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -104,13 +104,9 @@ const DemoInitializer = () => {
           setError(`Erro ${response.status}: ${errorText || 'Erro ao inicializar dados de demonstração'}`)
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao inicializar demo:', error)
-      if (error instanceof Error) {
-        setError(`Erro de conexão: ${error.message}`)
-      } else {
-        setError('Erro de conexão desconhecido')
-      }
+      setError(`Erro de conexão: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -204,5 +200,3 @@ const DemoInitializer = () => {
     </div>
   )
 }
-
-export default DemoInitializer;

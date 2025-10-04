@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { 
   Users, 
@@ -8,16 +8,14 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react'
-import { projectId, publicAnonKey } from '../utils/supabase/info'
+import { projectId } from '../utils/supabase/info'
 
 interface DashboardStats {
-  totalAppointments: number;
-  todayAppointments: number;
-  totalRevenue: number;
-  todayRevenue: number;
-  statusCounts: Record<string, number>;
-  averageTicket?: number;
-  averageCycleTime?: number;
+  totalAppointments: number
+  todayAppointments: number
+  totalRevenue: number
+  todayRevenue: number
+  statusCounts: Record<string, number>
 }
 
 interface DashboardProps {
@@ -25,67 +23,34 @@ interface DashboardProps {
   userRole: string
 }
 
-const statusColors: Record<string, string> = {
-  'Finalizado': 'bg-green-100 text-green-800',
-  'Em andamento': 'bg-yellow-100 text-yellow-800',
-  'Cancelado': 'bg-red-100 text-red-800',
-  'Pendente': 'bg-gray-100 text-gray-800',
-};
-
 export default function Dashboard({ accessToken }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Calcular KPIs do localStorage
-    const stored = localStorage.getItem("appointments");
-    let appointments = stored ? JSON.parse(stored) : [];
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    fetchStats()
+  }, [])
 
-    const todayAppointments = appointments.filter((apt: any) => {
-      if (!apt.createdAt) return false;
-      const aptDate = new Date(apt.createdAt).toISOString().slice(0, 10);
-      return aptDate === todayStr;
-    });
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-f78aeac5/dashboard/stats`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      )
 
-    const totalRevenue = appointments.reduce((sum: number, apt: any) => sum + (apt.totalAmount || 0), 0);
-    const todayRevenue = todayAppointments.reduce((sum: number, apt: any) => sum + (apt.totalAmount || 0), 0);
-
-    // Contagem por status
-    const statusCounts: Record<string, number> = {};
-    appointments.forEach((apt: any) => {
-      const status = apt.status || 'Pendente';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
-
-    setStats({
-      totalAppointments: appointments.length,
-      todayAppointments: todayAppointments.length,
-      totalRevenue,
-      todayRevenue,
-      statusCounts,
-      averageTicket: appointments.length ? totalRevenue / appointments.length : 0,
-      averageCycleTime: undefined
-    });
-    setLoading(false);
-  }, []);
-
-  // Função de exportação de dados
-  function handleExport() {
-    const rows = [
-      ['Indicador', 'Valor'],
-      ['Receita Total', stats?.totalRevenue || 0],
-      ['Ticket Médio', stats?.averageTicket || 0],
-      ['Volume de Atendimentos', stats?.totalAppointments || 0],
-      ['Tempo Médio de Ciclo', stats?.averageCycleTime || 0],
-    ];
-    const csvContent = rows.map(e => e.join(';')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'dashboard_neokids.csv';
-    link.click();
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -124,28 +89,48 @@ export default function Dashboard({ accessToken }: DashboardProps) {
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
     }
-  ];
+  ]
+
+  const statusColors: Record<string, string> = {
+    'Aguardando Coleta': 'bg-yellow-100 text-yellow-800',
+    'Em Análise': 'bg-blue-100 text-blue-800',
+    'Aguardando Laudo': 'bg-orange-100 text-orange-800',
+    'Finalizado': 'bg-green-100 text-green-800'
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <span className="text-gray-500">Carregando...</span>
+      <div className="space-y-6">
+        <h2 className="text-2xl font-semibold text-gray-900">Dashboard Gerencial</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-20 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-gray-900">Dashboard Gerencial</h2>
+        <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <Clock className="w-4 h-4" />
+          <span>Atualizado há poucos segundos</span>
+        </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {/* KPI Cards */}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((card, index) => {
-          const Icon = card.icon;
+          const Icon = card.icon
           return (
-            <Card key={index} className="border border-gray-200 hover:shadow-lg transition-shadow">
+            <Card key={index} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -160,11 +145,13 @@ export default function Dashboard({ accessToken }: DashboardProps) {
                 </div>
               </CardContent>
             </Card>
-          );
+          )
         })}
       </div>
-      <div className="grid gap-4 mt-4 grid-cols-1 lg:grid-cols-2">
-        <Card className="border border-gray-200 shadow-sm">
+
+      {/* Status Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Activity className="w-5 h-5" />
@@ -192,7 +179,7 @@ export default function Dashboard({ accessToken }: DashboardProps) {
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-200 shadow-sm">
+        <Card>
           <CardHeader>
             <CardTitle>Resumo Financeiro</CardTitle>
           </CardHeader>
@@ -228,16 +215,14 @@ export default function Dashboard({ accessToken }: DashboardProps) {
         </Card>
       </div>
 
-      {/* Quick Actions e Exportação */}
-      <Card className="border border-gray-200 shadow-sm">
+      {/* Quick Actions */}
+      <Card>
         <CardHeader>
           <CardTitle>Ações Rápidas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              onClick={() => window.dispatchEvent(new CustomEvent('navigateModule', { detail: 'patients' }))}
-            >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
               <div className="flex items-center space-x-3">
                 <Users className="w-6 h-6 text-blue-600" />
                 <div>
@@ -246,9 +231,8 @@ export default function Dashboard({ accessToken }: DashboardProps) {
                 </div>
               </div>
             </button>
-            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              onClick={() => window.dispatchEvent(new CustomEvent('navigateModule', { detail: 'appointments' }))}
-            >
+            
+            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
               <div className="flex items-center space-x-3">
                 <Calendar className="w-6 h-6 text-green-600" />
                 <div>
@@ -257,9 +241,8 @@ export default function Dashboard({ accessToken }: DashboardProps) {
                 </div>
               </div>
             </button>
-            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
-              onClick={() => window.dispatchEvent(new CustomEvent('navigateModule', { detail: 'laboratory' }))}
-            >
+            
+            <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left">
               <div className="flex items-center space-x-3">
                 <Activity className="w-6 h-6 text-purple-600" />
                 <div>
@@ -269,14 +252,8 @@ export default function Dashboard({ accessToken }: DashboardProps) {
               </div>
             </button>
           </div>
-          <button
-            className="p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            onClick={handleExport}
-          >
-            Exportar Dados (Excel/CSV)
-          </button>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

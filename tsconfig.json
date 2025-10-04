@@ -1,26 +1,39 @@
 {
-	"compilerOptions": {
-		"target": "ESNext",
-		"lib": ["DOM", "DOM.Iterable", "ESNext"],
-		"allowJs": true,
-		"skipLibCheck": true,
-		"esModuleInterop": true,
-		"allowSyntheticDefaultImports": true,
-		"strict": true,
-		"forceConsistentCasingInFileNames": true,
-		"module": "ESNext",
-		"moduleResolution": "Node",
-		"resolveJsonModule": true,
-		"isolatedModules": true,
-		"noEmit": true,
-		"jsx": "react-jsx",
-		"types": ["vite/client", "jest", "node"],
-		"baseUrl": "./",
-		"paths": {
-			"@/*": ["src/*"]
-		},
-		"allowImportingTsExtensions": true
-	},
-	"include": ["src"],
-	"exclude": ["node_modules", "dist"]
+  "compilerOptions": {
+    // --- AMBIENTE DE EXECUÇÃO (Execution Environment) ---
+    // =================================================================================
+    "target": "ESNext", // Compila para a versão mais recente do JS. O Vite/bundler cuidará da compatibilidade com navegadores antigos.
+    "lib": ["DOM", "DOM.Iterable", "ESNext"], // Define as APIs disponíveis no ambiente de execução (ex: `document` no DOM).
+    "jsx": "react-jsx", // Usa a nova transformação JSX do React (não precisa importar React em cada arquivo).
+
+    // =================================================================================
+    // --- RESOLUÇÃO DE MÓDULOS (Module Resolution) ---
+    // =================================================================================
+    "module": "ESNext", // Usa o sistema de módulos padrão do JavaScript moderno.
+    "moduleResolution": "bundler", // Estratégia de resolução de módulos recomendada pelo Vite.
+    "resolveJsonModule": true, // Permite `import data from './data.json'`.
+    "esModuleInterop": true, // Melhora a compatibilidade entre diferentes tipos de módulos (CommonJS vs ES Modules).
+    "paths": {
+      "@/*": ["./src/*"] // Define o alias `@/` para a pasta `src`, simplificando as importações.
+    },
+
+    // =================================================================================
+    // --- QUALIDADE DE CÓDIGO E VERIFICAÇÃO ESTRITA (Code Quality & Strictness) ---
+    // =================================================================================
+    "strict": true, // Habilita o modo estrito do TypeScript, a melhor prática para código robusto.
+    "forceConsistentCasingInFileNames": true, // Evita bugs em sistemas de arquivos que não diferenciam maiúsculas/minúsculas.
+    "noUnusedLocals": true, // Sinaliza variáveis declaradas que nunca são lidas.
+    "noUnusedParameters": true, // Sinaliza parâmetros de função que nunca são usados.
+    "noFallthroughCasesInSwitch": true, // Previne que um `case` em um `switch` continue para o próximo sem um `break`.
+
+    // =================================================================================
+    // --- INTEGRAÇÃO COM O VITE (Vite Integration) ---
+    // =================================================================================
+    "isolatedModules": true, // Garante que cada arquivo possa ser processado de forma independente, requisito do Vite.
+    "noEmit": true, // O TypeScript apenas verifica os tipos; o Vite é responsável por gerar o código final.
+    "skipLibCheck": true, // Pula a verificação de tipos das bibliotecas em `node_modules`, acelerando significativamente o build.
+    "useDefineForClassFields": true
+  },
+  "include": ["src"], // Diz ao TypeScript para analisar apenas os arquivos na pasta `src`.
+  "references": [{ "path": "./tsconfig.node.json" }] // Aponta para a configuração específica do ambiente Node.js (para `vite.config.ts`).
 }

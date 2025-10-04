@@ -1113,7 +1113,7 @@
   }
 
   .border-transparent {
-  border-color: #e5e7eb;
+    border-color: #0000;
   }
 
   .border-yellow-200 {
@@ -2335,7 +2335,7 @@
   --accent-foreground: #030213;
   --destructive: #d4183d;
   --destructive-foreground: #fff;
-  --border: #e5e7eb;
+  --border: #0000001a;
   --input: transparent;
   --input-background: #f3f3f5;
   --switch-background: #cbced4;

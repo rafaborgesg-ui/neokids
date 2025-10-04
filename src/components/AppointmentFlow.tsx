@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { usePatients } from '@/hooks/usePatients'
+import { useServices } from '@/hooks/useServices'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -11,41 +13,25 @@ import {
   Plus, 
   Search, 
   DollarSign, 
-  Calendar,
   CreditCard,
-  QrCode,
   Printer,
   CheckCircle,
   X
 } from 'lucide-react'
-import { projectId, publicAnonKey } from '../utils/supabase/info'
-
-interface Patient {
-  id: string
-  name: string
-  cpf: string
-}
-
-interface Service {
-  id: string
-  name: string
-  code: string
-  basePrice: number
-  category: string
-}
+import { projectId } from '../utils/supabase/info'
 
 interface AppointmentFlowProps {
   accessToken: string
-  userRole: string
 }
 
-const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
+export default function AppointmentFlow({ accessToken }: AppointmentFlowProps) {
+  const { patients, fetchPatients } = usePatients(accessToken)
+  const { services, fetchServices } = useServices(accessToken)
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [selectedPatient, setSelectedPatient] = useState<any>(null)
   const [patientSearch, setPatientSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<Patient[]>([])
-  const [services, setServices] = useState<Service[]>([])
-  const [selectedServices, setSelectedServices] = useState<Service[]>([])
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedServices, setSelectedServices] = useState<any[]>([])
   const [paymentMethod, setPaymentMethod] = useState('')
   const [insuranceType, setInsuranceType] = useState('particular')
   const [totalAmount, setTotalAmount] = useState(0)
@@ -54,38 +40,43 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
   const [createdAppointment, setCreatedAppointment] = useState<any>(null)
 
   useEffect(() => {
-    // Buscar serviços do localStorage
-    const stored = localStorage.getItem("services");
-    if (stored) setServices(JSON.parse(stored));
-  }, []);
+    fetchServices()
+  }, [fetchServices])
 
   useEffect(() => {
     if (patientSearch.length >= 2) {
-      // Buscar pacientes do localStorage
-      const stored = localStorage.getItem("patients");
-      if (stored) {
-        const allPatients = JSON.parse(stored);
-        const results = allPatients.filter((p: Patient) =>
-          p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-          p.cpf.replace(/\D/g, '').includes(patientSearch.replace(/\D/g, ''))
-        );
-        setSearchResults(results);
-      } else {
-        setSearchResults([]);
-      }
+      searchPatients()
     } else {
-      setSearchResults([]);
+      setSearchResults([])
     }
-  }, [patientSearch]);
+  }, [patientSearch])
 
   useEffect(() => {
     const total = selectedServices.reduce((sum, service) => sum + service.basePrice, 0)
     setTotalAmount(total)
   }, [selectedServices])
 
-  // Remover funções de busca via API
+  const searchPatients = async () => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-f78aeac5/patients/search?q=${encodeURIComponent(patientSearch)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      )
 
-  const addService = (service: Service) => {
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResults(data.patients || [])
+      }
+    } catch (error) {
+      console.error('Erro na busca:', error)
+    }
+  }
+
+  const addService = (service: any) => {
     if (!selectedServices.find(s => s.id === service.id)) {
       setSelectedServices([...selectedServices, service])
     }
@@ -122,14 +113,9 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
       )
 
       if (response.ok) {
-  const data = await response.json()
-  setCreatedAppointment(data.appointment)
-  // Salvar no localStorage para integração com KanbanBoard
-  const stored = localStorage.getItem("appointments")
-  let appointments = stored ? JSON.parse(stored) : []
-  appointments.push(data.appointment)
-  localStorage.setItem("appointments", JSON.stringify(appointments))
-  setCurrentStep(4)
+        const data = await response.json()
+        setCreatedAppointment(data.appointment)
+        setCurrentStep(4)
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'Erro ao criar atendimento')
@@ -190,7 +176,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
       </div>
 
       {/* Progress Steps */}
-      <Card className="border border-gray-200 shadow-sm">
+      <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
@@ -230,7 +216,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
 
       {/* Step 1: Patient Identification */}
       {currentStep === 1 && (
-    <Card className="border border-gray-200 shadow-sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <User className="w-5 h-5" />
@@ -260,7 +246,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
                       setPatientSearch('')
                     }}
                   >
-                      <div className="flex items-center justify-between border border-gray-200">
+                    <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{patient.name}</p>
                         <p className="text-sm text-gray-600">{patient.cpf}</p>
@@ -275,7 +261,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
             )}
 
             {selectedPatient && (
-              <Card className="bg-green-50 border border-gray-200">
+              <Card className="bg-green-50 border-green-200">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -310,7 +296,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
       {/* Step 2: Service Selection */}
       {currentStep === 2 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="border border-gray-200 shadow-sm">
+          <Card>
             <CardHeader>
               <CardTitle>Serviços Disponíveis</CardTitle>
             </CardHeader>
@@ -350,7 +336,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200 shadow-sm">
+          <Card>
             <CardHeader>
               <CardTitle>Serviços Selecionados</CardTitle>
             </CardHeader>
@@ -427,7 +413,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
 
       {/* Step 3: Payment */}
       {currentStep === 3 && (
-          <Card className="border border-gray-200 shadow-sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <CreditCard className="w-5 h-5" />
@@ -494,7 +480,7 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
       {/* Step 4: Completion */}
       {currentStep === 4 && createdAppointment && (
         <div className="space-y-6">
-          <Card className="bg-green-50 border border-gray-200 shadow-sm">
+          <Card className="bg-green-50 border-green-200">
             <CardContent className="p-6 text-center">
               <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-green-900 mb-2">
@@ -507,31 +493,29 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="border border-gray-200 shadow-sm">
+            <Card>
               <CardHeader>
                 <CardTitle>Etiquetas de Amostra</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {createdAppointment.sampleIds?.map((sampleId: string, index: number) => (
-                    <div key={sampleId} className="p-2 border rounded bg-white print:w-56 print:h-32 print:p-1 print:m-0 print:break-inside-avoid">
+                    <div key={sampleId} className="p-4 border rounded-lg bg-white">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-base print:text-lg">{selectedServices[index]?.name}</p>
-                          <p className="text-xs text-gray-700 print:text-sm">Amostra:</p>
-                          <p className="text-lg font-mono print:text-xl">{sampleId}</p>
+                          <p className="font-medium">{selectedServices[index]?.name}</p>
+                          <p className="text-sm text-gray-600">Amostra: {sampleId}</p>
                         </div>
                         <img
                           src={generateQRCode(sampleId)}
                           alt="QR Code"
-                          className="w-20 h-20 print:w-24 print:h-24"
-                          style={{ border: '2px solid #333', background: '#fff' }}
+                          className="w-16 h-16"
                         />
                       </div>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full mt-4 print:hidden" onClick={printDocument}>
+                <Button className="w-full mt-4" onClick={printDocument}>
                   <Printer className="w-4 h-4 mr-2" />
                   Imprimir Etiquetas
                 </Button>
@@ -601,5 +585,3 @@ const AppointmentFlow = ({ accessToken, userRole }: AppointmentFlowProps) => {
     </div>
   )
 }
-
-export default AppointmentFlow;
